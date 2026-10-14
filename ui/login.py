@@ -1,5 +1,6 @@
 import sys
-
+from pathlib import Path
+from PySide6.QtGui import QPixmap
 from PySide6.QtCore import (
     Qt,
     QPropertyAnimation,
@@ -44,10 +45,8 @@ class LoginWindow(QMainWindow):
             "Employee Management System"
         )
 
-        self.setFixedSize(
-            1200,
-            720
-        )
+        self.resize(1200, 800)
+        self.setMinimumSize(1000, 650)
 
         # ------------------------------------------------------
         # Application settings
@@ -142,20 +141,43 @@ class LoginWindow(QMainWindow):
 
         brand_layout = QHBoxLayout()
 
-        logo = QLabel("E")
+        # ------------------------------------------------------
+        # Application logo
+        # ------------------------------------------------------
+        # Put your logo image in the project's assets folder using one
+        # of these names: logo.png, logo.jpg, logo.jpeg, or logo.svg.
+        # If no image is found, the built-in EMS mark is shown instead.
+        logo = QLabel("EMS")
+        logo.setObjectName("logo")
+        logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo.setFixedSize(52, 52)
+        logo.setScaledContents(False)
 
-        logo.setObjectName(
-            "logo"
-        )
+        project_root = Path(__file__).resolve().parent.parent
+        logo_candidates = [
+            project_root / "assets" / "logo.png",
+            project_root / "assets" / "logo.jpg",
+            project_root / "assets" / "logo.jpeg",
+            project_root / "assets" / "logo.svg",
+        ]
 
-        logo.setAlignment(
-            Qt.AlignmentFlag.AlignCenter
-        )
-
-        logo.setFixedSize(
-            52,
-            52
-        )
+        for logo_path in logo_candidates:
+            if logo_path.is_file():
+                logo_pixmap = QPixmap(str(logo_path))
+                if not logo_pixmap.isNull():
+                    logo.setText("")
+                    logo.setPixmap(
+                        logo_pixmap.scaled(
+                            52,
+                            52,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
+                    )
+                    logo.setStyleSheet(
+                        "background: transparent; border: none;"
+                    )
+                    break
 
         brand_name = QLabel(
             "Employee Management"

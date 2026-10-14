@@ -1,34 +1,33 @@
-# Python virtual environment
-venv/
-.venv/
-env/
 
-# Python cache
+# Python
 __pycache__/
 *.py[cod]
-*.pyo
+venv/
+.venv/
 
-# Environment variables and secrets
+# Environment and secrets
 .env
 .env.*
 !.env.example
 
-# IDE and operating system files
+# Local databases and backups
+*.db
+*.sqlite
+*.sqlite3
+backups/
+logs/
+
+# Generated reports and exports
+reports/exports/
+reports/payroll_exports/
+reports/pdf_exports/
+reports/payslips/
+*.csv
+*.xlsx
+*.pdf
+
+# Editor and operating system
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
-
-# Test and coverage cache
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Logs and temporary files
-*.log
-*.tmp
-
-# Local database files — do not upload private data
-*.db
-*.sqlite
-*.sqlite3

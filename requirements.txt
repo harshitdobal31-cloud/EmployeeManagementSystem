@@ -1,0 +1,8 @@
+PySide6
+SQLAlchemy
+pandas
+matplotlib
+reportlab
+openpyxl
+bcrypt
+pytest

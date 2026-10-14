@@ -1,153 +1,247 @@
-# Employee Management System
+# Employee Management System (EMS)
 
-A desktop-based Employee Management System built with Python and PySide6. The project is designed to help manage employee information and common HR operations through a graphical user interface.
+A desktop-based Employee Management System developed using **Python, PySide6, SQLAlchemy, and SQLite**. The application is designed to simplify employee-related administrative tasks through a graphical user interface, database management, reporting, attendance tracking, and payroll operations.
 
-## Features
+## 📌 Project Overview
 
-- **Employee Management:** Add and manage employee records.
-- **Authentication:** Login with role-based access.
-- **Attendance Management:** Organize employee attendance records.
-- **Payroll Management:** Maintain payroll-related information.
-- **Performance Management:** Track employee performance.
-- **Notifications:** Display notifications to relevant users.
-- **Departments:** Organize employees by department.
-- **Audit Logs:** Maintain records of selected system activities.
-- **Database Integration:** Store and manage application data.
+The Employee Management System (EMS) is a Python desktop application that helps organizations manage employee information and related HR activities from a centralized system.
 
-> Note: Features listed here describe the project's intended modules. Availability may depend on the current implementation.
+The project follows a modular structure that separates the user interface, database models, business logic, and utility functions, making the application easier to maintain and extend.
 
-## Technology Stack
+## ✨ Features
 
-- **Language:** Python
-- **Desktop GUI:** PySide6
-- **Data Processing:** Pandas and NumPy
-- **Charts and Visualization:** Matplotlib
-- **Database Layer:** SQLAlchemy / project database configuration
-- **Development Environment:** Visual Studio Code
+### 👥 Employee Management
+- Add and manage employee information.
+- Organize employee records in a centralized database.
+- Use a dedicated employee form and management interface.
 
-## Project Structure
+### 🔐 Authentication
+- Login and signup interfaces.
+- Password security utilities using bcrypt.
+- User authentication and session management.
+
+### 📅 Attendance Management
+- Attendance-related operations.
+- Attendance data export support.
+
+### 💰 Payroll Management
+- Payroll processing and related calculations.
+- Payroll reporting and Excel export support.
+- Payslip generation in PDF format.
+
+### 📊 Performance Management
+- Manage employee performance-related information.
+- Generate performance reports.
+
+### 🏖️ Leave Management
+- Leave-related workflows and service functions.
+- Leave request database migration support.
+
+### 📈 Reports and Exports
+- Generate PDF reports.
+- Export data to Excel and CSV formats.
+- Support for employee, attendance, payroll, performance, quality, and audit-related reports where implemented.
+
+### 🗓️ Calendar and Notifications
+- Calendar-related functionality.
+- Notification data and workflows supported by the application.
+
+### ⚙️ Additional Modules
+- Quality management.
+- Application settings.
+- Dashboard interfaces.
+- Database migration and seed scripts.
+
+> Note: The availability of individual features may depend on the current implementation and database configuration.
+
+## 🛠️ Technologies Used
+
+| Technology | Purpose |
+|---|---|
+| Python | Core application logic |
+| PySide6 | Desktop graphical user interface |
+| SQLAlchemy | Database ORM and data access |
+| SQLite | Local database storage |
+| pandas | Data processing and exports |
+| Matplotlib | Data visualization |
+| openpyxl | Excel file handling |
+| ReportLab | PDF report generation |
+| bcrypt | Password hashing |
+| pytest | Automated testing |
+
+## 📁 Project Structure
 
 ```text
 EmployeeManagementSystem/
+│
+├── assets/                  # Application assets
 ├── database/
-│   ├── seed.py
-│   └── ...
+│   ├── database.py          # Database connection and sessions
+│   ├── models.py            # Database models
+│   ├── seed.py              # Seed data utility
+│   ├── migrate_employee.py  # Employee database migration
+│   └── migrate_leave_requests.py
+│
 ├── services/
-├── tests/
-├── requirements.txt
-├── database.py
-├── models.py
+│   ├── auth_service.py
+│   ├── employee_service.py
+│   ├── attendance_service.py
+│   ├── leave_service.py
+│   ├── payroll_service.py
+│   ├── performance_service.py
+│   ├── quality_service.py
+│   ├── calendar_service.py
+│   ├── report_service.py
+│   └── settings_service.py
+│
+├── ui/
+│   ├── login.py
+│   ├── signup.py
+│   ├── dashboard.py
+│   ├── employee_dashboard.py
+│   ├── employees.py
+│   ├── employee_form.py
+│   ├── attendance.py
+│   ├── payroll.py
+│   ├── performance.py
+│   ├── quality.py
+│   ├── calendar.py
+│   ├── reports.py
+│   └── settings.py
+│
+├── utils/                   # Security, sessions, themes and exports
+├── reports/                 # Report generation modules
+├── tests/                   # Automated tests
+├── main.py                  # Application entry point
+├── requirements.txt         # Python dependencies
 ├── .gitignore
 └── README.md
 ```
 
-The actual folder structure may differ as the project develops.
+## 💻 System Requirements
 
-## Prerequisites
+- Windows, Linux, or macOS
+- Python 3.10 or newer recommended
+- pip package manager
+- Git (for cloning the repository)
 
-- Python installed on your computer
-- Git installed
-- Visual Studio Code (recommended)
+The application has been developed and tested in a Windows environment. Compatibility with other operating systems may require additional configuration.
 
-## Installation
+## 🚀 Installation and Setup
 
-### 1. Clone the repository
+### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/Employee-Management-System.git
-cd Employee-Management-System
+git clone https://github.com/harshitdobal31-cloud/EmployeeManagementSystem.git
 ```
 
-Replace `YOUR-USERNAME` with your GitHub username.
-
-### 2. Create a virtual environment
+### 2. Open the Project Directory
 
 ```bash
+cd EmployeeManagementSystem
+```
+
+### 3. Create a Virtual Environment
+
+**Windows PowerShell:**
+
+```powershell
 python -m venv venv
 ```
 
-Activate it on Windows PowerShell:
+### 4. Activate the Virtual Environment
 
 ```powershell
 .\venv\Scripts\Activate.ps1
 ```
 
-### 3. Install dependencies
+If PowerShell blocks activation, you can use Command Prompt instead:
 
-If the project contains a `requirements.txt` file:
-
-```bash
-python -m pip install -r requirements.txt
+```cmd
+venv\Scripts\activate.bat
 ```
 
-If it does not, install the project's required packages according to the imports and database configuration before running the application.
+### 5. Install Dependencies
 
-### 4. Configure the database
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
 
-Check the project's database configuration and follow its setup or migration instructions. Use your own local credentials and keep passwords and private database files out of GitHub.
-
-### 5. Run the application
-
-Use the entry-point Python file configured by the project. For example, if the main file is `main.py`:
+### 6. Run the Application
 
 ```bash
 python main.py
 ```
 
-If your entry point has a different name, replace `main.py` with the correct filename.
+## 🗄️ Database
 
+The project uses SQLAlchemy for database operations and SQLite for local data storage.
 
-python -m pytest
+The database configuration is located in:
+
+```text
+database/database.py
 ```
 
-Resolve any missing dependencies or database setup requirements before running the tests.
+Database models are defined in:
 
-## Security Notes
+```text
+database/models.py
+```
 
-- Do not commit passwords, API keys, or `.env` files.
-- Do not upload private employee information or production database backups.
-- Use demo data for screenshots and demonstrations.
-- Configure database credentials locally.
+The project also contains database seed and migration scripts. Review their contents before executing them, especially when working with an existing database.
 
-## Future Improvements
+**Important:** Keep personal employee information, passwords, private database files, and production records out of public repositories.
 
-- Improve reporting and dashboard visualizations.
-- Expand automated testing.
-- Improve notification workflows.
-- Add additional reporting and export options.
+## 🧪 Testing
 
-## Author
+The project includes a `tests/` directory and uses pytest for automated testing.
 
-**Harshit Dobal**
+Run the available tests from the project root:
 
-## License
-
-No license has been selected yet. All rights remain with the author unless a license is added to this repository.
-## Testing
-
-Run the automated tests from the project root directory:
-
-```powershell
+```bash
 python -m pytest -v
 ```
 
-If a test fails, review the error message and verify that the required dependencies and database configuration are available.
+Some tests may require a correctly configured database and environment.
 
-## Project Structure
+## 🔒 Security Considerations
 
-- `database/` — Database models, connection, migrations, and seed scripts
-- `services/` — Application business logic
-- `ui/` — PySide6 desktop interface
-- `reports/` — Report generation and export utilities
-- `tests/` — Automated tests
-- `utils/` — Shared utilities and helper functions
+- Password hashing utilities use bcrypt.
+- Local database files and environment secrets should not be committed.
+- Configure production credentials securely.
+- Use appropriate access controls when handling employee and payroll information.
+- Review authentication and authorization before deploying the application in a real organization.
 
-## Technologies Used
+## 🔮 Future Enhancements
 
-- Python
-- PySide6
-- SQLAlchemy
-- SQLite
-- Pandas
-- Matplotlib
-- Pytest
+Potential improvements include:
+
+- More comprehensive role-based access control.
+- Enhanced dashboards and analytics.
+- Expanded notification workflows.
+- Improved automated test coverage.
+- Additional database and deployment options.
+- More comprehensive validation and error handling.
+
+These are potential enhancements and should not be considered implemented unless they are available in the current codebase.
+
+## 👨‍💻 Author
+
+**Harshit Dobal**
+
+GitHub: [@harshitdobal31-cloud](https://github.com/harshitdobal31-cloud)
+
+## 📄 License
+
+No license has been specified yet. Unless a license is added to this repository, reuse and redistribution are subject to the applicable copyright rules.
+
+---
+
+⭐ If you find this project useful, consider starring the repository.
+
+**Project:** Employee Management System  
+**Language:** Python  
+**Application Type:** Desktop Application  
+**Repository:** [EmployeeManagementSystem](https://github.com/harshitdobal31-cloud/EmployeeManagementSystem)

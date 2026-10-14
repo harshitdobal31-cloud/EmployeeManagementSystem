@@ -96,11 +96,7 @@ python main.py
 
 If your entry point has a different name, replace `main.py` with the correct filename.
 
-## Testing
 
-If the project uses pytest and has configured tests, run:
-
-```bash
 python -m pytest
 ```
 
@@ -127,3 +123,31 @@ Resolve any missing dependencies or database setup requirements before running t
 ## License
 
 No license has been selected yet. All rights remain with the author unless a license is added to this repository.
+## Testing
+
+Run the automated tests from the project root directory:
+
+```powershell
+python -m pytest -v
+```
+
+If a test fails, review the error message and verify that the required dependencies and database configuration are available.
+
+## Project Structure
+
+- `database/` — Database models, connection, migrations, and seed scripts
+- `services/` — Application business logic
+- `ui/` — PySide6 desktop interface
+- `reports/` — Report generation and export utilities
+- `tests/` — Automated tests
+- `utils/` — Shared utilities and helper functions
+
+## Technologies Used
+
+- Python
+- PySide6
+- SQLAlchemy
+- SQLite
+- Pandas
+- Matplotlib
+- Pytest

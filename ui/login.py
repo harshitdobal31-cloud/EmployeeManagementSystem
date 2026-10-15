@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QColor
 from PySide6.QtCore import (
     Qt,
     QPropertyAnimation,
@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QFrame,
+    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -298,6 +299,15 @@ class LoginWindow(QMainWindow):
             "Monitor employee performance easily."
         )
 
+        # Extra product highlights make the welcome panel more informative.
+        highlights = QLabel(
+            "SECURE ACCESS   •   SMART WORKFLOWS   •   ONE WORKSPACE"
+        )
+        highlights.setObjectName("highlightsLabel")
+        highlights.setWordWrap(True)
+        left_layout.addSpacing(8)
+        left_layout.addWidget(highlights)
+
         left_layout.addStretch()
 
         # ------------------------------------------------------
@@ -343,6 +353,20 @@ class LoginWindow(QMainWindow):
 
         top_bar = QHBoxLayout()
 
+        # Live date and time shown beside the theme control.
+        self.clock_label = QLabel()
+        self.clock_label.setObjectName("clockLabel")
+        self.clock_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        top_bar.addWidget(self.clock_label)
+
+        self.clock_timer = QTimer(self)
+        self.clock_timer.timeout.connect(self.update_clock)
+        self.update_clock()
+        self.clock_timer.start(1000)
+
+        top_bar.addSpacing(16)
         top_bar.addStretch()
 
         self.theme_button = QPushButton()
@@ -628,6 +652,25 @@ class LoginWindow(QMainWindow):
             Qt.CursorShape.PointingHandCursor
         )
 
+        # Soft animated blue glow draws attention to the primary action.
+        self.login_glow = QGraphicsDropShadowEffect(self.login_button)
+        self.login_glow.setOffset(0, 0)
+        self.login_glow.setColor(QColor("#3B82F6"))
+        self.login_glow.setBlurRadius(14)
+        self.login_button.setGraphicsEffect(self.login_glow)
+
+        self.login_glow_animation = QPropertyAnimation(
+            self.login_glow, b"blurRadius", self
+        )
+        self.login_glow_animation.setStartValue(10.0)
+        self.login_glow_animation.setEndValue(25.0)
+        self.login_glow_animation.setDuration(1100)
+        self.login_glow_animation.setEasingCurve(
+            QEasingCurve.Type.InOutSine
+        )
+        self.login_glow_animation.setLoopCount(-1)
+        self.login_glow_animation.start()
+
         self.login_button.clicked.connect(
             self.handle_login
         )
@@ -770,6 +813,17 @@ class LoginWindow(QMainWindow):
         self.password_input.returnPressed.connect(
             self.handle_login
         )
+
+    # ==========================================================
+    # LIVE CLOCK
+    # ==========================================================
+
+    def update_clock(self):
+        """Refresh the date and time displayed in the top-right area."""
+        from datetime import datetime
+
+        now = datetime.now()
+        self.clock_label.setText(now.strftime("%a, %d %b %Y  |  %I:%M:%S %p"))
 
     # ==========================================================
     # FEATURE
@@ -993,6 +1047,24 @@ class LoginWindow(QMainWindow):
                     font-size: 10px;
                 }
 
+                #clockLabel {
+                    color: #CBD5E1;
+                    font-size: 12px;
+                    font-weight: 700;
+                    padding: 8px 12px;
+                    background: #1E293B;
+                    border: 1px solid #334155;
+                    border-radius: 9px;
+                }
+
+                #highlightsLabel {
+                    color: #93C5FD;
+                    font-size: 10px;
+                    font-weight: 800;
+                    letter-spacing: 1px;
+                    padding-top: 8px;
+                }
+
                 #themeButton {
                     background: #1E293B;
                     color: #F8FAFC;
@@ -1203,6 +1275,24 @@ class LoginWindow(QMainWindow):
                 #copyrightLabel {
                     color: #64748B;
                     font-size: 10px;
+                }
+
+                #clockLabel {
+                    color: #334155;
+                    font-size: 12px;
+                    font-weight: 700;
+                    padding: 8px 12px;
+                    background: white;
+                    border: 1px solid #CBD5E1;
+                    border-radius: 9px;
+                }
+
+                #highlightsLabel {
+                    color: #93C5FD;
+                    font-size: 10px;
+                    font-weight: 800;
+                    letter-spacing: 1px;
+                    padding-top: 8px;
                 }
 
                 #themeButton {

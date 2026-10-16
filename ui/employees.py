@@ -1,3 +1,5 @@
+from PySide6.QtWidgets import QFileDialog
+import csv
 
 from pathlib import Path
 import logging
@@ -179,6 +181,14 @@ class EmployeeManagementWindow(QWidget):
         self.refresh_button.clicked.connect(self.refresh_employees)
 
         filter_layout.addWidget(self.refresh_button)
+        self.export_button = QPushButton('Export CSV')
+        self.export_button.setObjectName('secondaryButton')
+        self.export_button.setMinimumSize(115, 42)
+        self.export_button.setToolTip(
+            'Export the currently displayed employee records to CSV'
+        )
+        self.export_button.clicked.connect(self.export_employees)
+        filter_layout.addWidget(self.export_button)
         main_layout.addWidget(filter_frame)
 
         # ---------------- EMPLOYEE TABLE ----------------
@@ -866,6 +876,65 @@ class EmployeeManagementWindow(QWidget):
                 "An unexpected error occurred while deleting "
                 "the employee.\n\n"
                 f"Details: {exc}",
+            )
+
+    def export_employees(self):
+        """Export the currently visible employee rows to a CSV file."""
+        row_count = self.employee_table.rowCount()
+
+        if row_count == 0:
+            QMessageBox.information(
+                self,
+                "Export Employees",
+                "There are no employee records to export."
+            )
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Employee Records",
+            "employee_records.csv",
+            "CSV Files (*.csv)"
+        )
+
+        if not file_path:
+            return
+
+        if not file_path.lower().endswith(".csv"):
+            file_path += ".csv"
+
+        try:
+            with open(
+                file_path, "w", newline="", encoding="utf-8-sig"
+            ) as csv_file:
+                writer = csv.writer(csv_file)
+
+                headers = [
+                    self.employee_table.horizontalHeaderItem(column).text()
+                    for column in range(1, 9)
+                ]
+                writer.writerow(headers)
+
+                for row in range(row_count):
+                    values = []
+                    for column in range(1, 9):
+                        item = self.employee_table.item(row, column)
+                        values.append(item.text() if item else "")
+                    writer.writerow(values)
+
+            QMessageBox.information(
+                self,
+                "Export Successful",
+                f"Exported {row_count} employee record(s) to:\\n"
+                f"{file_path}"
+            )
+
+        except (OSError, csv.Error) as exc:
+            logger.exception("Unable to export employee records")
+            QMessageBox.critical(
+                self,
+                "Export Failed",
+                f"The employee report could not be saved.\\n\\n{exc}"
             )
 
     # ========================================================

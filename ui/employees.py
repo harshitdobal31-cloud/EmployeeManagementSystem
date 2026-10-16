@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import QFileDialog
+from utils.employee_export import export_employee_rows
 import csv
 
 from pathlib import Path
@@ -904,23 +905,19 @@ class EmployeeManagementWindow(QWidget):
             file_path += ".csv"
 
         try:
-            with open(
-                file_path, "w", newline="", encoding="utf-8-sig"
-            ) as csv_file:
-                writer = csv.writer(csv_file)
+            headers = [
+                self.employee_table.horizontalHeaderItem(column).text()
+                for column in range(1, 9)
+            ]
+            rows = []
+            for row in range(row_count):
+                values = []
+                for column in range(1, 9):
+                    item = self.employee_table.item(row, column)
+                    values.append(item.text() if item else "")
+                rows.append(values)
 
-                headers = [
-                    self.employee_table.horizontalHeaderItem(column).text()
-                    for column in range(1, 9)
-                ]
-                writer.writerow(headers)
-
-                for row in range(row_count):
-                    values = []
-                    for column in range(1, 9):
-                        item = self.employee_table.item(row, column)
-                        values.append(item.text() if item else "")
-                    writer.writerow(values)
+            export_employee_rows(file_path, headers, rows)
 
             QMessageBox.information(
                 self,

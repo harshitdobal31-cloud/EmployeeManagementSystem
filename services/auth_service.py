@@ -17,7 +17,15 @@ def login_user(login_value: str, password: str):
         User object if login is successful.
         None if login fails.
     """
+    # Validate input before opening a database session.
+    if not isinstance(login_value, str) or not isinstance(password, str):
+        return None
+
     login_value = login_value.strip()
+
+    if not login_value or not password:
+        return None
+
     db = SessionLocal()
     
 

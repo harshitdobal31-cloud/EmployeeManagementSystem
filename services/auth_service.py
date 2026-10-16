@@ -17,15 +17,16 @@ def login_user(login_value: str, password: str):
         User object if login is successful.
         None if login fails.
     """
-
+    login_value = login_value.strip()
     db = SessionLocal()
+    
 
     try:
         user = (
             db.query(User)
             .filter(
                 (User.username == login_value)
-                | (User.email == login_value)
+                | (User.email == login_value.lower())
             )
             .first()
         )

@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 
 from database.database import SessionLocal
 from database.models import Attendance, Employee
@@ -96,50 +96,25 @@ def add_attendance(attendance_data):
 # CALCULATE WORKING HOURS
 # ============================================================
 
-def calculate_working_hours(
-    check_in,
-    check_out
-):
-
+def calculate_working_hours(check_in, check_out):
+    """Calculate working hours, including overnight shifts."""
     if not check_in or not check_out:
         return None
 
     try:
+        start_time = datetime.strptime(check_in, "%H:%M")
+        end_time = datetime.strptime(check_out, "%H:%M")
 
-        start_time = datetime.strptime(
-            check_in,
-            "%H:%M"
-        )
+        difference = (end_time - start_time).total_seconds() / 3600
 
-        end_time = datetime.strptime(
-            check_out,
-            "%H:%M"
-        )
+        if difference < 0:
+            difference += 24
 
-        difference = (
-            end_time - start_time
-        )
+        return round(difference, 2)
 
-        hours = (
-            difference.total_seconds()
-            / 3600
-        )
-
-        # Invalid checkout before check-in
-        if hours < 0:
-            return None
-
-        return round(
-            hours,
-            2
-        )
-
-    except ValueError:
-
+    except (ValueError, TypeError):
         return None
 
-
-# ============================================================
 # GET ALL ATTENDANCE
 # ============================================================
 

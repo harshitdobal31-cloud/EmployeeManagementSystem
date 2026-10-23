@@ -18,6 +18,7 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
     QVariantAnimation,
+    Signal,
 )
 from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
@@ -315,16 +316,48 @@ def _attr(obj, *names):
 
 
 def _to_date(value):
+    """Normalize dates saved by older and newer employee forms.
+
+    The employee form has historically stored dates as ``dd-MM-yyyy`` strings,
+    while SQLAlchemy Date columns and newer code may return ``date`` objects or
+    ISO strings. Accept these formats so the growth chart and recent table use
+    the same real joining-date values without changing any database records.
+    """
     if value is None:
         return None
     if isinstance(value, datetime):
         return value.date()
     if isinstance(value, date):
         return value
-    try:
-        return date.fromisoformat(str(value)[:10])
-    except ValueError:
+
+    text = str(value).strip()
+    if not text:
         return None
+
+    # First try ISO values, including ISO datetime strings.
+    try:
+        return date.fromisoformat(text[:10])
+    except (TypeError, ValueError):
+        pass
+
+    # Compatibility with the formats used by the employee form and imports.
+    for fmt in (
+        "%d-%m-%Y", "%d/%m/%Y", "%d.%m.%Y",
+        "%Y/%m/%d", "%Y-%m-%d",
+        "%d-%m-%y", "%d/%m/%y",
+    ):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except (TypeError, ValueError):
+            continue
+
+    # Some older records may contain a datetime after the date portion.
+    for fmt in ("%d-%m-%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except (TypeError, ValueError):
+            continue
+    return None
 
 
 def _as_int(value):
@@ -588,11 +621,16 @@ class DashboardButton(QPushButton):
 
 
 class StatCard(QFrame):
-    """KPI card with a count-up animation. Shows '—' when a value is unavailable."""
+    """Clickable KPI card with a count-up animation."""
+
+    clicked = Signal()
 
     def __init__(self, title, icon, accent, accent_light, parent=None):
         super().__init__(parent)
         self.setObjectName("statCard")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setToolTip(f"Open {title}")
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setStyleSheet(
             f"""
             QFrame#statCard {{
@@ -601,7 +639,11 @@ class StatCard(QFrame):
                 border-radius: 16px;
             }}
             QFrame#statCard:hover {{
-                border: 1px solid {accent};
+                border: 2px solid {accent};
+                background: {PALETTE["background"]};
+            }}
+            QFrame#statCard:focus {{
+                border: 2px solid {accent};
             }}
             """
         )
@@ -638,6 +680,18 @@ class StatCard(QFrame):
 
         self._displayed = 0
         self._animation = None
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):
+            self.clicked.emit()
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def set_value(self, value, subtitle="", animate=True):
         self.subtitle_label.setText(subtitle)
@@ -1446,6 +1500,12 @@ class DashboardWindow(QWidget):
             "Processed Payroll", "₹", PALETTE["secondary"], PALETTE["secondary_light"]
         )
 
+        # KPI cards are interactive shortcuts to their actual modules.
+        self.kpi_total.clicked.connect(self.open_employee_management)
+        self.kpi_active.clicked.connect(self.open_employee_management)
+        self.kpi_present.clicked.connect(self.open_attendance)
+        self.kpi_payroll.clicked.connect(self.open_payroll)
+
         for card in (self.kpi_total, self.kpi_active, self.kpi_present, self.kpi_payroll):
             row.addWidget(card, 1)
 
@@ -1674,7 +1734,7 @@ class DashboardWindow(QWidget):
         for record in visible:
             row_index = table.rowCount()
             table.insertRow(row_index)
-            joined_text = record["joined"].isoformat() if record["joined"] else "—"
+            joined_text = record["joined"].strftime("%d %b %Y") if record["joined"] else "—"
             values = [
                 record["id"],
                 record["name"],
@@ -1758,15 +1818,19 @@ class DashboardWindow(QWidget):
             reason = "Attendance data unavailable" if "Attendance" in errors else "No count returned"
             self.kpi_present.set_value(None, reason)
         else:
-            percent = (present / total * 100) if total else 0
-            self.kpi_present.set_value(present, f"{percent:.1f}% of total employees")
+            # Do not show a percentage here: the legacy service may count multiple
+            # attendance rows per employee. The attendance screen is the source of detail.
+            subtitle = "Present today"
+            if total is not None and present > total:
+                subtitle = "Check attendance records"
+            self.kpi_present.set_value(present, subtitle)
 
         processed = data["processed"]
         if processed is None:
             reason = "Payroll data unavailable" if "Payroll" in errors else "No count returned"
             self.kpi_payroll.set_value(None, reason)
         else:
-            self.kpi_payroll.set_value(processed, "Processed in payroll summary")
+            self.kpi_payroll.set_value(processed, "Payroll records · click to open")
 
         # Charts
         self.growth_chart.set_series(data["growth_labels"], data["growth_values"])
@@ -2024,12 +2088,14 @@ class DashboardWindow(QWidget):
                 users = db.query(User).all()
                 recipients = []
                 accepted_roles = {
-                    "hr", "hr manager", "hrmanager", "human resources",
-                    "employee", "staff",
+                    "hr", "hr manager", "hrmanager", "hr executive",
+                    "human resources", "human resource", "employee", "staff",
                 }
                 inactive_statuses = {"blocked", "inactive", "disabled", "0", "false", "terminated"}
                 for user in users:
-                    user_role = str(getattr(user, "role", "") or "").strip().lower().replace("_", " ")
+                    user_role = " ".join(
+                        str(getattr(user, "role", "") or "").strip().lower().replace("_", " ").split()
+                    )
                     if user_role not in accepted_roles:
                         continue
                     status_value = getattr(user, "status", None)
@@ -2059,7 +2125,7 @@ class DashboardWindow(QWidget):
                     dialog,
                     "Notification sent",
                     f"Saved notification for {len(recipients)} HR/employee account(s). "
-                    "Recipients can see it in their notification bell if their dashboard reads the Notification table.",
+                    "HR and employee accounts can read it from their dashboard notification bell.",
                 )
                 dialog.accept()
             except Exception as error:

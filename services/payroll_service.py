@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 from database.database import SessionLocal
 from database.models import Employee, Payroll
 
@@ -269,15 +270,30 @@ def search_payroll(
         # MONTH FILTER
         # ----------------------------------------------------
 
-        if (
-            payroll_month
-            and payroll_month != "All Months"
-        ):
+        if payroll_month and payroll_month != "All Months":
+            month_names = {
+                "january": "01", "february": "02",
+                "march": "03", "april": "04",
+                "may": "05", "june": "06",
+                "july": "07", "august": "08",
+                "september": "09", "october": "10",
+                "november": "11", "december": "12",
+            }
+            selected = payroll_month.strip()
+            month_number = month_names.get(selected.lower())
 
-            query = query.filter(
-                Payroll.payroll_month
-                == payroll_month
-            )
+            if month_number:
+                query = query.filter(
+                    or_(
+                        Payroll.payroll_month.ilike(selected),
+                        Payroll.payroll_month.like(f"%-{month_number}"),
+                        Payroll.payroll_month.like(f"%-{month_number}-%"),
+                    )
+                )
+            else:
+                query = query.filter(
+                    Payroll.payroll_month == selected
+                )
 
         # ----------------------------------------------------
         # STATUS FILTER

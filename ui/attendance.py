@@ -1,3 +1,4 @@
+﻿from datetime import datetime
 from PySide6.QtCore import Qt, QDate, QTime
 from PySide6.QtWidgets import (
     QWidget,
@@ -112,7 +113,7 @@ class AttendanceWindow(QWidget):
         header_layout.addStretch()
 
         mark_button = QPushButton(
-            "＋  Mark Attendance"
+            "+  Mark Attendance"
         )
 
         mark_button.setObjectName(
@@ -304,7 +305,7 @@ class AttendanceWindow(QWidget):
         # Refresh
 
         refresh_button = QPushButton(
-            "⟳  Refresh"
+            "↻  Refresh"
         )
 
         refresh_button.setObjectName(
@@ -551,7 +552,7 @@ class AttendanceWindow(QWidget):
             selected_date = (
                 self.date_filter
                 .date()
-                .toString("dd-MM-yyyy")
+                .toString("yyyy-MM-dd")
             )
 
             # Date filtering is applied only when
@@ -559,11 +560,16 @@ class AttendanceWindow(QWidget):
 
             if not search_text:
 
+                selected_date_alt = (
+                    datetime.strptime(selected_date, "%Y-%m-%d")
+                    .strftime("%d-%m-%Y")
+                )
+
                 records = [
                     record
                     for record in records
-                    if record.attendance_date
-                    == selected_date
+                    if str(record.attendance_date or "").strip()
+                    in (selected_date, selected_date_alt)
                 ]
 
             self.populate_table(
@@ -1425,7 +1431,7 @@ class AttendanceFormDialog(QDialog):
         attendance_date = (
             self.date_input
             .date()
-            .toString("dd-MM-yyyy")
+            .toString("yyyy-MM-dd")
         )
 
         check_in = (

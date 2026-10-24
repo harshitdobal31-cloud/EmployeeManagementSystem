@@ -754,8 +754,29 @@ class HRDataService:
 
     def attendance_for_day(self, day):
         with session_scope() as session:
-            rows = session.query(Attendance).filter(date_between(Attendance.attendance_date, day, day + timedelta(days=1))).all()
-            return {row.employee_id: {"status": normalize_status(row.status), "check_in": row.check_in, "check_out": row.check_out, "working_hours": row.working_hours} for row in rows}
+            rows = session.query(Attendance).all()
+            result = {}
+
+            for row in rows:
+                stored_date = to_date(row.attendance_date)
+                if stored_date != day:
+                    continue
+
+                # Prefer the latest matching row when legacy duplicate dates exist.
+                previous = result.get(row.employee_id)
+                if previous is None or row.id > previous.get("_id", 0):
+                    result[row.employee_id] = {
+                        "_id": row.id,
+                        "status": normalize_status(row.status),
+                        "check_in": row.check_in,
+                        "check_out": row.check_out,
+                        "working_hours": row.working_hours,
+                    }
+
+            for values in result.values():
+                values.pop("_id", None)
+
+            return result
 
     @staticmethod
     def _time_minutes(value):
@@ -773,7 +794,15 @@ class HRDataService:
 
     def save_attendance(self, day, marks):
         with session_scope() as session:
-            existing = {row.employee_id: row for row in session.query(Attendance).filter(date_between(Attendance.attendance_date, day, day + timedelta(days=1))).all()}
+            all_rows = session.query(Attendance).all()
+            existing = {}
+
+            for row in all_rows:
+                if to_date(row.attendance_date) == day:
+                    previous = existing.get(row.employee_id)
+                    if previous is None or row.id > previous.id:
+                        existing[row.employee_id] = row
+
             for employee_id, values in marks.items():
                 status = values.get("status") if isinstance(values, dict) else values
                 check_in = ((values.get("check_in") or "").strip() or None) if isinstance(values, dict) else None

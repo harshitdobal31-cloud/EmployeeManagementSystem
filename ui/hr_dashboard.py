@@ -135,7 +135,7 @@ WORKING_DAYS_PER_MONTH = 30
 # Performance.score is assumed to be on a 0..PERFORMANCE_MAX_SCORE scale.
 # The dashboard UI shows ratings out of 5, so scores are scaled to /5.
 # If your Performance.score is out of 100, set this to 100.0.
-PERFORMANCE_MAX_SCORE = 5.0
+PERFORMANCE_MAX_SCORE = 10.0
 
 # Payroll rows with these statuses are treated as "not paid yet".
 PENDING_PAYROLL_STATUSES = {"pending", "unpaid", "draft"}
@@ -253,9 +253,8 @@ def month_bounds(month):
 _MONTH_FORMATS = ("%Y-%m", "%B %Y", "%b %Y", "%m/%Y", "%Y-%m-%d")
 
 
-def normalize_month(value):
-    """Any stored month representation -> 'YYYY-MM' (or None)."""
-
+def normalize_month(value, fallback_year=None):
+    """Normalize payroll month values to YYYY-MM."""
     if value is None or value == "":
         return None
 
@@ -265,16 +264,21 @@ def normalize_month(value):
     text = str(value).strip()
 
     for candidate in (text, text[:10], text[:7]):
-
         for fmt in _MONTH_FORMATS:
-
             try:
                 return datetime.strptime(candidate, fmt).strftime("%Y-%m")
             except ValueError:
                 continue
 
-    return None
+    if fallback_year is not None:
+        for fmt in ("%B", "%b"):
+            try:
+                parsed = datetime.strptime(text, fmt)
+                return f"{fallback_year:04d}-{parsed.month:02d}"
+            except ValueError:
+                continue
 
+    return None
 
 def month_value(attr, month):
     """'YYYY-MM' in the type the payroll_month column stores."""
@@ -316,18 +320,18 @@ def is_active(status):
 
 def rating_from_score(score):
 
-    return float(score or 0) / PERFORMANCE_MAX_SCORE * 5
+    return float(score or 0)
 
 
 def category_for_rating(rating):
 
-    if rating >= 4.5:
+    if rating >= 9.0:
         return "Excellent"
 
-    if rating >= 3.5:
+    if rating >= 7.0:
         return "Good"
 
-    if rating >= 2.5:
+    if rating >= 5.0:
         return "Average"
 
     return "Needs Improvement"
@@ -914,8 +918,17 @@ class HRDataService:
         return {
             "id": row.id,
             "employee_id": row.employee_id,
-            "month": normalize_month(row.payroll_month)
-            or to_iso_date(row.payroll_month),
+            "month": (
+                normalize_month(
+                    row.payroll_month,
+                    fallback_year=(
+                        row.created_at.year
+                        if row.created_at is not None
+                        else None
+                    ),
+                )
+                or to_iso_date(row.payroll_month)
+            ),
             "amount": float(row.net_salary or 0),
             "basic_salary": float(row.basic_salary or 0),
             "allowances": float(row.allowances or 0),
@@ -943,13 +956,23 @@ class HRDataService:
         )
 
     def payroll_map(self, month):
-        """{employee_id: payroll record dict} for one month."""
-
-        return {
-            record["employee_id"]: record
-            for record in self._payroll_all()
+        """Choose the best existing record for each employee in a month."""
+        priority = {"locked": 3, "paid": 2, "processed": 1}
+        records = [
+            record for record in self._payroll_all()
             if record["month"] == month
-        }
+        ]
+        records.sort(
+            key=lambda record: (
+                priority.get((record.get("status") or "").strip().lower(), 0),
+                record.get("id") or 0,
+            )
+        )
+
+        result = {}
+        for record in records:
+            result[record["employee_id"]] = record
+        return result
 
     def payroll_record(self, employee_id, month):
 
@@ -1031,36 +1054,48 @@ class HRDataService:
         return net_salary
 
     def process_payroll(self, items, month):
-        """items = dicts with id, salary, deduction, net."""
-
+        """Create or update pending payroll; preserve completed and locked records."""
         with session_scope() as session:
+            existing = {}
 
-            existing = {
-                row.employee_id: row
-                for row in session.query(Payroll).all()
-                if normalize_month(row.payroll_month) == month
-            }
+            rows = session.query(Payroll).order_by(Payroll.id.desc()).all()
+            for row in rows:
+                row_month = normalize_month(
+                    row.payroll_month,
+                    fallback_year=(
+                        row.created_at.year
+                        if row.created_at is not None
+                        else None
+                    ),
+                )
+                if row_month != month:
+                    continue
+
+                current = existing.get(row.employee_id)
+                if current is None:
+                    existing[row.employee_id] = row
+                elif (current.status or "").strip().lower() != "locked":
+                    if (row.status or "").strip().lower() == "locked":
+                        existing[row.employee_id] = row
 
             for item in items:
-
                 record = existing.get(item["id"])
 
-                if record is None:
-
+                if record is not None:
+                    status = (record.status or "").strip().lower()
+                    if status not in PENDING_PAYROLL_STATUSES:
+                        continue
+                else:
                     record = Payroll(
                         employee_id=item["id"],
-                        payroll_month=month_value(
-                            Payroll.payroll_month,
-                            month,
-                        ),
+                        payroll_month=month_value(Payroll.payroll_month, month),
                         allowances=0,
                     )
-
                     session.add(record)
+                    existing[item["id"]] = record
 
                 record.basic_salary = item["salary"]
                 record.deductions = item["deduction"]
-                # PayrollPage rows already include allowances in item["net"].
                 record.net_salary = item["net"]
                 record.status = "Paid"
 
@@ -1186,8 +1221,8 @@ class HRDataService:
                         Performance.review_date,
                         date.today(),
                     ),
-                    score=rating / 5 * PERFORMANCE_MAX_SCORE,
-                    percentage=rating / 5 * 100,
+                    score=rating,
+                    percentage=rating / 10 * 100,
                     category=category_for_rating(rating),
                     comments=remarks,
                 )
@@ -3153,13 +3188,13 @@ class ReviewDialog(QDialog):
             show_db_error(self, exc)
 
         self.rating_input = QDoubleSpinBox()
-        self.rating_input.setRange(0.0, 5.0)
+        self.rating_input.setRange(0.0, 10.0)
         self.rating_input.setSingleStep(0.5)
         self.rating_input.setDecimals(1)
         self.rating_input.setValue(3.0)
-        self.rating_input.setSuffix(" / 5")
+        self.rating_input.setSuffix(" / 10")
         self.rating_input.setMinimumHeight(42)
-        self.rating_input.setToolTip("Choose a rating from 0 to 5, matching Admin.")
+        self.rating_input.setToolTip("Choose a rating from 0 to 10, matching Admin.")
 
         self.remarks_input = QTextEdit()
         self.remarks_input.setMinimumHeight(115)
@@ -3168,7 +3203,7 @@ class ReviewDialog(QDialog):
         )
 
         form.addRow("Employee", self.employee_input)
-        form.addRow("Rating (0–5)", self.rating_input)
+        form.addRow("Rating (0–10)", self.rating_input)
         form.addRow("Remarks", self.remarks_input)
         card_layout.addLayout(form)
         root.addWidget(form_card, 1)
@@ -3515,7 +3550,7 @@ class EmployeeDetailDialog(QDialog):
                     row["id"],
                     [
                         row["review_date"],
-                        f"{row['rating']:.1f} / 5",
+                        f"{row['rating']:.1f} / 10",
                         row["remarks"],
                     ],
                 )
@@ -4429,14 +4464,14 @@ class DashboardPage(BasePage):
             line.addStretch()
 
             line.addWidget(
-                make_label(f"{person['rating']:.1f} / 5", "statNote")
+                make_label(f"{person['rating']:.1f} / 10", "statNote")
             )
 
             bar = QProgressBar()
 
             bar.setRange(0, 100)
 
-            bar.setValue(int(person["rating"] * 20))
+            bar.setValue(int(person["rating"] * 10))
 
             bar.setFixedHeight(8)
 
@@ -6116,7 +6151,7 @@ class PerformancePage(BasePage):
                     [
                         row["name"],
                         row["department"],
-                        f"{row['rating']:.1f} / 5",
+                        f"{row['rating']:.1f} / 10",
                         row["remarks"],
                         row["review_date"],
                     ],
@@ -6159,7 +6194,7 @@ class PerformancePage(BasePage):
 
             bar.setRange(0, 100)
 
-            bar.setValue(int(person["rating"] * 20))
+            bar.setValue(int(person["rating"] * 10))
 
             bar.setFixedHeight(8)
 
@@ -6172,7 +6207,7 @@ class PerformancePage(BasePage):
         average = self.db.average_rating()
 
         self.average_label.setText(
-            f"Overall average: {average:.2f} / 5"
+            f"Overall average: {average:.2f} / 10"
             if average
             else "No ratings recorded."
         )

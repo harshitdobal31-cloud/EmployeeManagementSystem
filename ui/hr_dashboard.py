@@ -147,6 +147,7 @@ LEAVE_SUPPORTED = True
 LEAVE_UNSUPPORTED_TEXT = "Leave module is not available."
 
 
+from services.calendar_service import get_events_by_date, get_events_by_month
 class LeaveUnavailableError(RuntimeError):
     """Raised when a Leave operation is attempted without a Leave model."""
 
@@ -5289,7 +5290,7 @@ class CalendarPage(BasePage):
         top.addLayout(
             page_header(
                 "Calendar",
-                "Leave requests by date (highlighted days have leaves)",
+                "Meetings, events and employee leave requests",
             )
         )
 
@@ -5345,6 +5346,15 @@ class CalendarPage(BasePage):
 
         right.addWidget(self.table)
 
+        self.events_label = make_label("Events on selected date", "sectionTitle")
+        right.addWidget(self.events_label)
+
+        self.events_table = make_table()
+        right.addWidget(self.events_table)
+
+        self.events_empty_label = make_label("", "emptyLabel")
+        right.addWidget(self.events_empty_label)
+
         self.empty_label = make_label("", "emptyLabel")
 
         right.addWidget(self.empty_label)
@@ -5390,6 +5400,50 @@ class CalendarPage(BasePage):
         show_all = self.show_all_box.isChecked()
 
         rows = self.db.leave_rows(selected, show_all)
+
+        # Load Admin-created calendar events from the shared database table.
+        try:
+            if show_all:
+                event_rows = []
+                year = self.calendar.selectedDate().year()
+                for event_month in range(1, 13):
+                    event_rows.extend(
+                        get_events_by_month(year, event_month)
+                    )
+            else:
+                event_rows = get_events_by_date(
+                    self.calendar.selectedDate().toPython()
+                )
+        except Exception as error:
+            print("HR calendar events load error:", error)
+            event_rows = []
+
+        self.events_label.setText(
+            "All calendar events"
+            if show_all
+            else "Events on "
+            + self.calendar.selectedDate().toString("dd MMM yyyy")
+        )
+
+        fill_table(
+            self.events_table,
+            ["Title", "Type", "Description"],
+            [
+                (
+                    event.id,
+                    [
+                        event.title or "",
+                        event.event_type or "Other",
+                        event.description or "-",
+                    ],
+                )
+                for event in event_rows
+            ],
+        )
+
+        self.events_empty_label.setText(
+            "" if event_rows else "No calendar events for this selection."
+        )
 
         if show_all:
 

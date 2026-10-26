@@ -6647,14 +6647,28 @@ class HRQualityIssuesPage(QWidget):
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
 
+        selected_status = status.currentText()
+        selected_root_cause = root_cause.toPlainText().strip()
+        selected_corrective_action = corrective.toPlainText().strip()
+
+        if selected_status in ("Resolved", "Closed"):
+            if not selected_root_cause or not selected_corrective_action:
+                QMessageBox.warning(
+                    self,
+                    "Resolution Details Required",
+                    "Before resolving or closing this issue, please enter "
+                    "both Root Cause and Corrective Action."
+                )
+                return
+
         db = SessionLocal()
         try:
             db_issue = db.query(QualityIssue).filter(QualityIssue.id == issue.id).first()
             if not db_issue:
                 raise ValueError("Quality issue was not found.")
-            db_issue.status = status.currentText()
-            db_issue.root_cause = root_cause.toPlainText().strip()
-            db_issue.corrective_action = corrective.toPlainText().strip()
+            db_issue.status = selected_status
+            db_issue.root_cause = selected_root_cause
+            db_issue.corrective_action = selected_corrective_action
             db.commit()
             self.toast("Quality issue updated successfully")
             self.refresh()

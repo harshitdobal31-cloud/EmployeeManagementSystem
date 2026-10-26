@@ -3417,60 +3417,60 @@ class LeaveDialog(QDialog):
 
 
 class EmployeeDetailDialog(QDialog):
-    """Read-only profile: info, attendance this month, payroll, reviews."""
+    """Read-only employee profile with a scrollable content area."""
 
     def __init__(self, db, employee_id, parent=None):
-
         super().__init__(parent)
 
         self.setWindowTitle("Employee Profile")
-
         self.setMinimumSize(560, 560)
+        self.resize(680, 760)
 
-        layout = QVBoxLayout(self)
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(12, 12, 12, 12)
+        outer_layout.setSpacing(8)
 
-        layout.setContentsMargins(24, 20, 24, 20)
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
 
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(12, 8, 12, 12)
         layout.setSpacing(12)
 
+        outer_layout.addWidget(scroll, 1)
+        scroll.setWidget(content)
+
         try:
-
             employee = db.get_employee(employee_id)
-
             month = month_key(date.today())
-
             counts = db.employee_attendance_counts(employee_id, month)
-
             payroll_rows = db.payroll_history(employee_id, 6)
-
             review_rows = db.employee_reviews(employee_id, 6)
 
         except SQLAlchemyError as exc:
-
             show_db_error(self, exc)
-
             layout.addWidget(QLabel("Could not load this employee."))
-
             return
 
         if employee is None:
-
             layout.addWidget(QLabel("Employee not found."))
-
             return
 
-        # ---------------- header ----------------
-
+        # Header
         header = QHBoxLayout()
 
         avatar = QLabel(employee["name"][:1].upper())
-
         avatar.setObjectName("avatar")
-
         avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
         avatar.setFixedSize(56, 56)
-
         avatar.setStyleSheet(
             "background: #DBEAFE; color: #2563EB; "
             "border-radius: 28px; font-size: 22px; "
@@ -3478,32 +3478,24 @@ class EmployeeDetailDialog(QDialog):
         )
 
         title_box = QVBoxLayout()
-
         title_box.setSpacing(0)
-
         title_box.addWidget(make_label(employee["name"], "pageTitle"))
-
         title_box.addWidget(
             make_label(
-                f"{employee['designation'] or '-'}  •  "
-                f"{employee['department'] or '-'}  •  "
+                f"{employee['designation'] or '-'}  ?  "
+                f"{employee['department'] or '-'}  ?  "
                 f"{employee['emp_code']}",
                 "pageSubtitle",
             )
         )
 
         header.addWidget(avatar)
-
         header.addSpacing(12)
-
         header.addLayout(title_box)
-
         header.addStretch()
-
         layout.addLayout(header)
 
-        # ---------------- info ----------------
-
+        # Employee information
         info = QLabel(
             f"<b>Email:</b> {employee['email'] or '-'}<br>"
             f"<b>Phone:</b> {employee['phone'] or '-'}<br>"
@@ -3511,15 +3503,12 @@ class EmployeeDetailDialog(QDialog):
             f"<b>Salary:</b> {format_inr(employee['salary'])} / month<br>"
             f"<b>Status:</b> {employee['status']}"
         )
-
         info.setObjectName("summaryBox")
-
+        info.setWordWrap(True)
         layout.addWidget(info)
 
-        # ---------------- attendance ----------------
-
+        # Attendance
         layout.addWidget(make_label("Attendance this month", "sectionTitle"))
-
         layout.addWidget(
             make_label(
                 f"Present: {counts['Present']}    "
@@ -3529,13 +3518,11 @@ class EmployeeDetailDialog(QDialog):
             )
         )
 
-        # ---------------- payroll ----------------
-
+        # Payroll history
         layout.addWidget(make_label("Payroll history", "sectionTitle"))
-
         payroll_table = make_table()
-
-        payroll_table.setMaximumHeight(130)
+        payroll_table.setMinimumHeight(110)
+        payroll_table.setMaximumHeight(160)
 
         fill_table(
             payroll_table,
@@ -3552,16 +3539,16 @@ class EmployeeDetailDialog(QDialog):
                 for row in payroll_rows
             ],
         )
-
         layout.addWidget(payroll_table)
 
-        # ---------------- reviews ----------------
+        if not payroll_rows:
+            layout.addWidget(QLabel("No payroll records found for this employee."))
 
+        # Performance reviews
         layout.addWidget(make_label("Performance reviews", "sectionTitle"))
-
         review_table = make_table()
-
-        review_table.setMaximumHeight(130)
+        review_table.setMinimumHeight(110)
+        review_table.setMaximumHeight(160)
 
         fill_table(
             review_table,
@@ -3578,14 +3565,18 @@ class EmployeeDetailDialog(QDialog):
                 for row in review_rows
             ],
         )
-
         layout.addWidget(review_table)
 
+        if not review_rows:
+            layout.addWidget(QLabel("No performance reviews found for this employee."))
+
+        layout.addStretch()
+
+
+        # Keep Close button outside the scroll area so it stays visible.
         close_button = make_button("Close", "secondaryButton")
-
         close_button.clicked.connect(self.accept)
-
-        layout.addWidget(close_button, 0, Qt.AlignmentFlag.AlignRight)
+        outer_layout.addWidget(close_button, 0, Qt.AlignmentFlag.AlignRight)
 
 
 class PayslipDialog(QDialog):

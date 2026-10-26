@@ -94,6 +94,7 @@ from database.models import (
     QualityIssue,
     User,
     LeaveRequest,
+    Notification,
 )
 from utils.session import Session
 
@@ -6936,6 +6937,15 @@ class HRDashboardWindow(QMainWindow):
 
             self.nav_buttons.append(button)
 
+        self.notifications_nav_button = QPushButton("??  Notifications")
+        self.notifications_nav_button.setCursor(
+            Qt.CursorShape.PointingHandCursor
+        )
+        self.notifications_nav_button.setMinimumHeight(42)
+        self.notifications_nav_button.setToolTip("View HR notifications")
+        self.notifications_nav_button.clicked.connect(self.show_notifications)
+        layout.addWidget(self.notifications_nav_button)
+
         layout.addStretch()
 
         # ---------------- bottom ----------------
@@ -7132,42 +7142,128 @@ class HRDashboardWindow(QMainWindow):
             self.bell_button.setFixedWidth(38)
 
     def show_notifications(self):
+        """Show admin messages and employee leave requests together."""
+        user = _session_user()
+        user_id = _user_field(user, "id") if user else None
 
-        if not self.db.leave_supported():
-
-            QMessageBox.information(
-                self,
-                "Notifications",
-                LEAVE_UNSUPPORTED_TEXT,
+        if user_id is None:
+            QMessageBox.warning(
+                self, "Notifications",
+                "Unable to identify the logged-in user. Please log in again."
             )
-
             return
 
+        db_session = SessionLocal()
         try:
-            pending = self.db.pending_leave_count()
-        except SQLAlchemyError as exc:
-            show_db_error(self, exc)
-            return
-
-        if pending == 0:
-
-            QMessageBox.information(
-                self,
-                "Notifications",
-                "You're all caught up. There are no pending requests.",
+            records = (
+                db_session.query(Notification)
+                .filter(Notification.user_id == user_id)
+                .order_by(Notification.created_at.desc(), Notification.id.desc())
+                .all()
             )
 
-            return
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Notifications")
+            dialog.resize(760, 560)
+            outer = QVBoxLayout(dialog)
 
-        dialog = NotificationDialog(self.db, self)
+            tabs = QTabWidget(dialog)
 
-        dialog.exec()
+            # Admin-sent messages tab
+            admin_page = QWidget()
+            admin_layout = QVBoxLayout(admin_page)
+            admin_layout.addWidget(QLabel("Messages sent by Admin"))
 
-        if dialog.changed:
+            if records:
+                table = QTableWidget(len(records), 4, admin_page)
+                table.setHorizontalHeaderLabels(
+                    ["Title", "Message", "Type", "Date"]
+                )
+                table.setEditTriggers(
+                    QAbstractItemView.EditTrigger.NoEditTriggers
+                )
+                table.horizontalHeader().setSectionResizeMode(
+                    QHeaderView.ResizeMode.Stretch
+                )
 
-            self.reload_current()
+                for r, record in enumerate(records):
+                    created = getattr(record, "created_at", None)
+                    values = [
+                        getattr(record, "title", "") or "Notification",
+                        getattr(record, "message", "") or "",
+                        getattr(record, "notification_type", "") or "General",
+                        created.strftime("%d-%m-%Y %I:%M %p")
+                        if created else "?",
+                    ]
+                    for c, value in enumerate(values):
+                        table.setItem(r, c, QTableWidgetItem(str(value)))
+                    record.is_read = 1
 
-            self.refresh_all()
+                table.resizeRowsToContents()
+                admin_layout.addWidget(table)
+            else:
+                admin_layout.addWidget(
+                    QLabel("No admin notifications yet.")
+                )
+
+            tabs.addTab(admin_page, f"Admin Messages ({len(records)})")
+
+            # Employee leave requests tab ? retain existing approval workflow
+            leave_page = QWidget()
+            leave_layout = QVBoxLayout(leave_page)
+            leave_layout.addWidget(QLabel("Employee leave requests"))
+
+            try:
+                pending = self.db.pending_leave_count()
+            except Exception:
+                logger.exception("Unable to count pending leave requests")
+                pending = 0
+
+            if pending:
+                leave_layout.addWidget(
+                    QLabel(f"{pending} leave request(s) waiting for review.")
+                )
+                review_button = QPushButton("Review Leave Requests")
+                review_button.clicked.connect(dialog.accept)
+                leave_layout.addWidget(review_button)
+            else:
+                leave_layout.addWidget(
+                    QLabel("No pending leave requests.")
+                )
+
+            tabs.addTab(leave_page, f"Leave Requests ({pending})")
+            outer.addWidget(tabs)
+
+            buttons = QHBoxLayout()
+            buttons.addStretch()
+            close_button = QPushButton("Close")
+            close_button.clicked.connect(dialog.accept)
+            buttons.addWidget(close_button)
+            outer.addLayout(buttons)
+
+            db_session.commit()
+            dialog.exec()
+
+            # If leave requests exist, open the original Approve/Reject dialog.
+            if pending:
+                leave_dialog = NotificationDialog(self.db, self)
+                leave_dialog.exec()
+                if leave_dialog.changed:
+                    self.reload_current()
+                    self.refresh_all()
+
+        except SQLAlchemyError as exc:
+            db_session.rollback()
+            show_db_error(self, exc)
+        except Exception:
+            db_session.rollback()
+            logger.exception("Unable to load notifications")
+            QMessageBox.critical(
+                self, "Notifications",
+                "Could not load notifications. Check the application log."
+            )
+        finally:
+            db_session.close()
 
     def open_activity(self):
 

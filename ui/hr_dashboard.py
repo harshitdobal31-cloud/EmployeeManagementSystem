@@ -1499,7 +1499,26 @@ class HRDataService:
 
         if name == "Leaves":
 
-            return ["Employee", "From", "To", "Reason", "Status"], []
+            with session_scope() as session:
+                leave_records = (
+                    session.query(LeaveRequest, Employee.full_name)
+                    .join(Employee, Employee.id == LeaveRequest.employee_id)
+                    .order_by(LeaveRequest.created_at.desc(), LeaveRequest.id.desc())
+                    .all()
+                )
+
+                data = [
+                    (
+                        employee_name,
+                        to_iso_date(leave.start_date),
+                        to_iso_date(leave.end_date),
+                        leave.reason or "",
+                        leave.status or "Pending",
+                    )
+                    for leave, employee_name in leave_records
+                ]
+
+            return ["Employee", "From", "To", "Reason", "Status"], data
 
         raise KeyError(name)
 

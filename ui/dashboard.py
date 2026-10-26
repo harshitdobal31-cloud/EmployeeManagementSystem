@@ -2077,6 +2077,24 @@ class DashboardWindow(QWidget):
         cancel_button.clicked.connect(dialog.reject)
 
         def send_notification():
+            # Respect the global notification preference saved in Settings.
+            try:
+                from services.settings_service import get_bool_setting
+                if not get_bool_setting("notifications_enabled", True):
+                    QMessageBox.information(
+                        dialog,
+                        "Notifications Disabled",
+                        "Enable application notifications in Settings before sending messages.",
+                    )
+                    return
+            except Exception as settings_error:
+                QMessageBox.critical(
+                    dialog,
+                    "Settings Error",
+                    f"Could not verify notification preferences. Nothing was sent.\\n\\n{settings_error}",
+                )
+                return
+
             title = title_input.text().strip()
             message = message_input.toPlainText().strip()
             if not title or not message:

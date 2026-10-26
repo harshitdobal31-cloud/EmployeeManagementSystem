@@ -2147,6 +2147,15 @@ class DashboardWindow(QWidget):
             "Settings",
         )
 
+        # Refresh Dashboard after Settings applies a new theme.
+        settings_window = getattr(self, "settings_window", None)
+        if settings_window is not None and hasattr(settings_window, "theme_changed"):
+            try:
+                settings_window.theme_changed.disconnect(self.refresh_theme)
+            except (TypeError, RuntimeError):
+                pass
+            settings_window.theme_changed.connect(self.refresh_theme)
+
     # ========================================================
     # USER INFORMATION
     # ========================================================

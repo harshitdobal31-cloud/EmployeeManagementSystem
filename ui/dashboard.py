@@ -1368,8 +1368,14 @@ class DashboardWindow(QWidget):
         return card
 
     def _on_search_changed(self, text):
+        """Filter employees and bring the search results into view."""
         self._search_text = text
         self._render_recent_table()
+
+        if text.strip() and self.recent_table is not None:
+            self.scroll_area.ensureWidgetVisible(
+                self.recent_table, 20, 20
+            )
 
     def toggle_fullscreen(self):
         if self.isFullScreen():
@@ -1605,6 +1611,12 @@ class DashboardWindow(QWidget):
         )
 
         self.recent_table = self._build_recent_table()
+        self.recent_table.cellDoubleClicked.connect(
+            lambda row, column: self.open_employee_management()
+        )
+        self.recent_table.setToolTip(
+            "Double-click an employee row to open Employee Management."
+        )
         table_layout.addWidget(self.recent_table, 1)
 
         self.table_footer_label = _make_label("", PALETTE["text_muted"], 11)

@@ -1910,13 +1910,11 @@ class DashboardWindow(QWidget):
             return window_class(self)
 
     def _open_module_window(self, attribute_name, candidates, title):
-        """
-        Open a window from the first importable (module, class) candidate.
-        Missing modules show a friendly message. Other errors are displayed,
-        never silently ignored.
-        """
+        """Show one feature window at a time and restore the dashboard on close."""
         existing = getattr(self, attribute_name, None)
+
         if _is_window_open(existing):
+            self.hide()
             existing.show()
             existing.raise_()
             existing.activateWindow()
@@ -1940,21 +1938,45 @@ class DashboardWindow(QWidget):
 
             try:
                 window = self._instantiate_window(window_class)
-            except Exception as error:
-                self._show_module_error(title, error)
+
+                # Closing a module destroys it so it cannot remain
+                # as a hidden window in the background.
+                window.setAttribute(
+                    Qt.WidgetAttribute.WA_DeleteOnClose,
+                    True,
+                )
+
+                window.destroyed.connect(
+                    lambda _obj=None, name=attribute_name:
+                        self._restore_dashboard_after_module(name)
+                )
+
+                setattr(self, attribute_name, window)
+
+                self.hide()
+                window.showMaximized()
+                window.raise_()
+                window.activateWindow()
                 return
 
-            setattr(self, attribute_name, window)
-            window.show()
-            window.raise_()
-            window.activateWindow()
-            return
+            except Exception as error:
+                self.show()
+                self.raise_()
+                self._show_module_error(title, error)
+                return
 
         QMessageBox.information(
             self,
             title,
             f"{title} module is not available yet.",
         )
+
+    def _restore_dashboard_after_module(self, attribute_name):
+        """Clear the closed module reference and return to the dashboard."""
+        setattr(self, attribute_name, None)
+        self.show()
+        self.raise_()
+        self.activateWindow()
 
     def _show_module_error(self, title, error):
         QMessageBox.warning(

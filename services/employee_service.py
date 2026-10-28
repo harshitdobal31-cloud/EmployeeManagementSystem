@@ -1,3 +1,5 @@
+import re
+from email_validator import validate_email, EmailNotValidError
 from database.database import SessionLocal
 from database.models import Employee, User
 from utils.security import hash_password
@@ -7,12 +9,87 @@ from utils.security import hash_password
 # ADD EMPLOYEE + CREATE LOGIN ACCOUNT
 # ============================================================
 
+def is_valid_employee_email(email):
+    if not isinstance(email, str):
+        return False
+
+    email = email.strip()
+
+    if not email or len(email) > 254 or email.count("@") != 1:
+        return False
+
+    local, domain = email.rsplit("@", 1)
+
+    if (
+        not local
+        or len(local) > 64
+        or local.startswith(".")
+        or local.endswith(".")
+        or ".." in local
+        or ".." in domain
+    ):
+        return False
+
+    pattern = (
+        r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+"
+        r"@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+        r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+"
+    )
+
+    if not re.fullmatch(pattern, email):
+        return False
+
+    labels = domain.split(".")
+
+    if any(not label or len(label) > 63 for label in labels):
+        return False
+
+    return len(labels[-1]) >= 2 and labels[-1].isalpha()
+
+
+
+def generate_employee_id():
+    """Generate the next unused ID in EMP + digits format."""
+    db = SessionLocal()
+    try:
+        existing_ids = db.query(Employee.employee_id).all()
+        highest_number = 0
+
+        for row in existing_ids:
+            value = (row[0] or "").strip().upper()
+            match = re.fullmatch(r"EMP([0-9]+)", value)
+            if match:
+                highest_number = max(highest_number, int(match.group(1)))
+
+        candidate_number = highest_number + 1
+        while True:
+            candidate = f"EMP{candidate_number:03d}"
+            if not db.query(Employee).filter(
+                Employee.employee_id == candidate
+            ).first():
+                return candidate
+            candidate_number += 1
+    finally:
+        db.close()
+
+
 def add_employee(employee_data):
     db = SessionLocal()
 
     try:
-        employee_id = employee_data["employee_id"].strip()
+        employee_id = employee_data["employee_id"].strip().upper()
         email = employee_data["email"].strip().lower()
+
+        if not re.fullmatch(r"EMP[0-9]+", employee_id):
+            return (
+                False,
+                "Invalid Employee ID. Use EMP followed by numbers only, "
+                "for example EMP001."
+            )
+
+        if not is_valid_employee_email(email):
+            return (False, "Invalid email address. Please enter a valid email.")
+
         password = employee_data.get("login_password", "").strip()
 
         # ----------------------------------------------------

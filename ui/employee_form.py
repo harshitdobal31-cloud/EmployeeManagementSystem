@@ -3,29 +3,76 @@ import re
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
-    QWidget,
-    QLabel,
-    QLineEdit,
-    QTextEdit,
-    QComboBox,
-    QDateEdit,
-    QDoubleSpinBox,
-    QPushButton,
-    QFormLayout,
-    QHBoxLayout,
-    QVBoxLayout,
-    QGridLayout,
-    QGroupBox,
-    QFileDialog,
-    QMessageBox,
-    QScrollArea,
-    QFrame,
+    QWidget, QLabel, QLineEdit, QTextEdit, QComboBox,
+    QDateEdit, QDoubleSpinBox, QPushButton, QFormLayout,
+    QHBoxLayout, QVBoxLayout, QGridLayout, QGroupBox,
+    QFileDialog, QMessageBox, QScrollArea, QFrame,
 )
 
 from services.employee_service import (
     add_employee,
     update_employee,
+    generate_employee_id,
 )
+
+
+
+
+def is_valid_email(email):
+    if not isinstance(email, str):
+        return False
+
+    email = email.strip()
+
+    if not email or len(email) > 254 or email.count("@") != 1:
+        return False
+
+    local, domain = email.rsplit("@", 1)
+    domain = domain.lower()
+
+    if (
+        not local
+        or len(local) > 64
+        or local.startswith(".")
+        or local.endswith(".")
+        or ".." in local
+        or ".." in domain
+    ):
+        return False
+
+    # Known email providers must match their exact domain.
+    known_providers = {
+        "gmail.com", "googlemail.com",
+        "outlook.com", "hotmail.com", "live.com",
+        "yahoo.com", "yahoo.co.in",
+        "icloud.com", "proton.me", "protonmail.com",
+    }
+
+    provider_roots = (
+        "gmail.com", "googlemail.com",
+        "outlook.com", "hotmail.com", "live.com",
+        "yahoo.com", "icloud.com", "proton.me",
+        "protonmail.com",
+    )
+
+    for provider in provider_roots:
+        if domain.startswith(provider) and domain not in known_providers:
+            return False
+
+    email_pattern = (
+        r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+"
+        r"@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+        r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+"
+    )
+
+    if not re.fullmatch(email_pattern, email):
+        return False
+
+    labels = domain.split(".")
+    if any(not label or len(label) > 63 for label in labels):
+        return False
+
+    return len(labels[-1]) >= 2 and labels[-1].isalpha()
 
 
 class EmployeeFormWindow(QWidget):
@@ -262,16 +309,8 @@ class EmployeeFormWindow(QWidget):
             self.create_emergency_card()
         )
 
-        bank_card = (
-            self.create_bank_card()
-        )
-
         bottom_layout.addWidget(
             emergency_card
-        )
-
-        bottom_layout.addWidget(
-            bank_card
         )
 
         content_layout.addLayout(
@@ -475,9 +514,16 @@ class EmployeeFormWindow(QWidget):
 
         self.employee_id_input = (
             self.create_line_edit(
-                "Example: EMP002"
+                "Automatically generated"
             )
         )
+
+        if not self.is_edit_mode:
+            self.employee_id_input.setReadOnly(False)
+            self.employee_id_input.setPlaceholderText(
+                "Example: EMP001"
+            )
+            self.employee_id_input.setText(generate_employee_id())
 
         self.full_name_input = (
             self.create_line_edit(
@@ -977,54 +1023,6 @@ class EmployeeFormWindow(QWidget):
     # BANK CARD
     # ========================================================
 
-    def create_bank_card(self):
-
-        card = QGroupBox(
-            "Bank Information"
-        )
-
-        form = QFormLayout()
-
-        form.setSpacing(
-            14
-        )
-
-        self.bank_account_input = (
-            self.create_line_edit(
-                "Enter bank account number"
-            )
-        )
-
-        form.addRow(
-            self.create_label(
-                "Bank Account"
-            ),
-            self.bank_account_input
-        )
-
-        note = QLabel(
-            "Used for payroll processing."
-        )
-
-        note.setObjectName(
-            "helperText"
-        )
-
-        form.addRow(
-            "",
-            note
-        )
-
-        card.setLayout(
-            form
-        )
-
-        return card
-
-    # ========================================================
-    # LOAD EMPLOYEE FOR EDIT
-    # ========================================================
-
     def load_employee_data(self):
 
         employee = self.employee
@@ -1152,12 +1150,6 @@ class EmployeeFormWindow(QWidget):
 
         self.emergency_phone_input.setText(
             employee.emergency_contact_phone or ""
-        )
-
-        # Bank
-
-        self.bank_account_input.setText(
-            employee.bank_account or ""
         )
 
         # Status
@@ -1349,6 +1341,16 @@ class EmployeeFormWindow(QWidget):
         # REQUIRED FIELDS
         # ----------------------------------------------------
 
+        if not re.fullmatch(r"EMP[0-9]+", employee_id):
+            QMessageBox.warning(
+                self,
+                "Invalid Employee ID",
+                "Employee ID must contain EMP followed by numbers only, "
+                "for example EMP001."
+            )
+            self.employee_id_input.setFocus()
+            return
+
         if not employee_id:
 
             QMessageBox.warning(
@@ -1389,24 +1391,16 @@ class EmployeeFormWindow(QWidget):
         # EMAIL VALIDATION
         # ----------------------------------------------------
 
-        email_pattern = (
-            r"^[A-Za-z0-9._%+-]+@"
-            r"[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
-        )
-
-        if not re.match(
-            email_pattern,
-            email
-        ):
+        # Strict email format validation
+        if not is_valid_email(email):
 
             QMessageBox.warning(
                 self,
                 "Invalid Email",
-                "Please enter a valid email address."
+                "Please enter a valid email address, for example name@gmail.com."
             )
 
             self.email_input.setFocus()
-
             return
 
         # ----------------------------------------------------
@@ -1612,12 +1606,6 @@ class EmployeeFormWindow(QWidget):
             .strip()
         )
 
-        bank_account = (
-            self.bank_account_input
-            .text()
-            .strip()
-        )
-
         emergency_name = (
             self.emergency_name_input
             .text()
@@ -1665,9 +1653,6 @@ class EmployeeFormWindow(QWidget):
 
             "salary":
                 self.salary_input.value(),
-
-            "bank_account":
-                bank_account or None,
 
             "emergency_contact_name":
                 emergency_name or None,

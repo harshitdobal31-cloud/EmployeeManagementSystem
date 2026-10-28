@@ -347,6 +347,26 @@ def update_employee(
             .lower()
         )
 
+        # Strict validation only for HR edit requests.
+        if employee_data.get("_hr_validation_mode", False):
+            if not is_valid_employee_email(new_email):
+                return (
+                    False,
+                    "Invalid email address. Please enter a valid email."
+                )
+
+            phone_value = str(employee_data.get("phone") or "").strip()
+            if phone_value and (
+                not phone_value.isascii()
+                or not phone_value.isdigit()
+                or len(phone_value) != 10
+            ):
+                return (
+                    False,
+                    "Phone number must contain exactly 10 digits."
+                )
+
+
         # ----------------------------------------------------
         # DUPLICATE EMAIL IN EMPLOYEE TABLE
         # ----------------------------------------------------

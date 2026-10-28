@@ -1,4 +1,4 @@
-import re
+﻿import re
 
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QPixmap
@@ -71,6 +71,64 @@ def is_valid_email(email):
     labels = domain.split(".")
     if any(not label or len(label) > 63 for label in labels):
         return False
+
+    return len(labels[-1]) >= 2 and labels[-1].isalpha()
+
+
+
+def is_valid_hr_email(email):
+    """Strict email validation used by the HR edit form only."""
+    if not isinstance(email, str):
+        return False
+
+    email = email.strip()
+
+    if not email or len(email) > 254 or email.count("@") != 1:
+        return False
+
+    local, domain = email.rsplit("@", 1)
+
+    if (
+        not local
+        or len(local) > 64
+        or local.startswith(".")
+        or local.endswith(".")
+        or ".." in local
+        or ".." in domain
+    ):
+        return False
+
+    pattern = (
+        r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+"
+        r"@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+        r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+"
+    )
+
+    if not re.fullmatch(pattern, email):
+        return False
+
+    labels = domain.split(".")
+    if any(not label or len(label) > 63 for label in labels):
+        return False
+
+    # Common providers must use their exact domain.
+    known_domains = {
+        "gmail.com", "googlemail.com",
+        "outlook.com", "hotmail.com", "live.com",
+        "yahoo.com", "yahoo.co.in",
+        "icloud.com", "proton.me", "protonmail.com",
+    }
+
+    provider_roots = (
+        "gmail.com", "googlemail.com", "outlook.com",
+        "hotmail.com", "live.com", "yahoo.com",
+        "icloud.com", "proton.me", "protonmail.com",
+    )
+
+    domain_lower = domain.lower()
+    for provider in provider_roots:
+        if domain_lower.startswith(provider) and domain_lower not in known_domains:
+            return False
 
     return len(labels[-1]) >= 2 and labels[-1].isalpha()
 
@@ -164,7 +222,7 @@ class EmployeeFormWindow(QWidget):
         header_layout.addStretch()
 
         close_button = QPushButton(
-            "✕  Close"
+            "Close"
         )
 
         close_button.setObjectName(
@@ -355,9 +413,9 @@ class EmployeeFormWindow(QWidget):
         )
 
         save_button = QPushButton(
-            "✓  Update Employee"
+            "Update Employee"
             if self.is_edit_mode
-            else "✓  Save Employee"
+            else "Save Employee"
         )
 
         save_button.setObjectName(
@@ -454,7 +512,7 @@ class EmployeeFormWindow(QWidget):
         )
 
         note = QLabel(
-            "JPG or PNG • Maximum 5 MB"
+            "JPG or PNG image Maximum 5 MB"
         )
 
         note.setObjectName(
@@ -693,7 +751,7 @@ class EmployeeFormWindow(QWidget):
         )
 
         self.salary_input.setPrefix(
-            "₹ "
+            "\u20b9 "
         )
 
         layout.addWidget(
@@ -779,7 +837,7 @@ class EmployeeFormWindow(QWidget):
     def create_login_card(self):
 
         card = QGroupBox(
-            "🔐 Employee Login Account"
+            "ðŸ” Employee Login Account"
         )
 
         layout = QGridLayout()
@@ -1392,7 +1450,7 @@ class EmployeeFormWindow(QWidget):
         # ----------------------------------------------------
 
         # Strict email format validation
-        if not is_valid_email(email):
+        if not (is_valid_hr_email(email) if getattr(self, 'hr_validation_mode', False) else is_valid_email(email)):
 
             QMessageBox.warning(
                 self,
@@ -1672,6 +1730,10 @@ class EmployeeFormWindow(QWidget):
         }
 
         # ----------------------------------------------------
+        # HR-only service validation flag.
+        if getattr(self, "hr_validation_mode", False):
+            employee_data["_hr_validation_mode"] = True
+
         # DATABASE
         # ----------------------------------------------------
 

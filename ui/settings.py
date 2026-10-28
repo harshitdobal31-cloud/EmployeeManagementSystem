@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # EMPLOYEE MANAGEMENT SYSTEM
 # PROFESSIONAL SETTINGS
 # ============================================================
@@ -165,10 +165,15 @@ class SettingsWindow(QWidget):
         header.addStretch()
 
         self.status_label = QLabel(
-            "● Ready"
+            "â— Ready"
         )
 
         self.status_label.setObjectName("settingsStatus")
+        self.status_label.setMinimumWidth(150)
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.status_label.setStyleSheet(
+            "color: #22C55E; font-weight: 600; padding: 6px 10px;"
+        )
 
         header.addWidget(
             self.status_label
@@ -186,37 +191,37 @@ class SettingsWindow(QWidget):
 
         self.tabs.addTab(
             self.create_appearance_tab(),
-            "🎨 Appearance"
+            'Appearance'
         )
 
         self.tabs.addTab(
             self.create_notification_tab(),
-            "🔔 Notifications"
+            'Notifications'
         )
 
         self.tabs.addTab(
             self.create_application_tab(),
-            "⚙ Application"
+            'Application'
         )
 
         self.tabs.addTab(
             self.create_backup_tab(),
-            "💾 Backup & Restore"
+            'Backup & Restore'
         )
 
         self.tabs.addTab(
             self.create_security_tab(),
-            "🔐 Security"
+            'Security'
         )
 
         self.tabs.addTab(
             self.create_regional_tab(),
-            "🌍 Regional"
+            'Regional'
         )
 
         self.tabs.addTab(
             self.create_system_tab(),
-            "🖥 System"
+            'System'
         )
 
         main.addWidget(
@@ -650,7 +655,7 @@ class SettingsWindow(QWidget):
         buttons = QHBoxLayout()
 
         backup_button = QPushButton(
-            "💾 Backup Database Now"
+            "ðŸ’¾ Backup Database Now"
         )
 
         backup_button.setObjectName(
@@ -662,7 +667,7 @@ class SettingsWindow(QWidget):
         )
 
         restore_button = QPushButton(
-            "↩ Restore Database"
+            "â†© Restore Database"
         )
 
         restore_button.setObjectName(
@@ -674,7 +679,7 @@ class SettingsWindow(QWidget):
         )
 
         open_backup_button = QPushButton(
-            "📁 Open Backup Folder"
+            "ðŸ“ Open Backup Folder"
         )
 
         open_backup_button.clicked.connect(
@@ -744,12 +749,12 @@ class SettingsWindow(QWidget):
         self.session_timeout_spin = QSpinBox()
 
         self.session_timeout_spin.setRange(
-            5,
-            480
+            30,
+            28800
         )
 
         self.session_timeout_spin.setSuffix(
-            " minutes"
+            " seconds"
         )
 
         grid.addWidget(
@@ -822,10 +827,10 @@ class SettingsWindow(QWidget):
 
         self.currency_combo.addItems(
             [
-                "INR (₹)",
+                "INR (â‚¹)",
                 "USD ($)",
-                "EUR (€)",
-                "GBP (£)"
+                "EUR (â‚¬)",
+                "GBP (Â£)"
             ]
         )
 
@@ -1134,7 +1139,7 @@ class SettingsWindow(QWidget):
         self.currency_combo.setCurrentText(
             get_setting(
                 "currency",
-                "INR (₹)"
+                "INR (â‚¹)"
             )
         )
 
@@ -1426,7 +1431,7 @@ class SettingsWindow(QWidget):
             )
 
             self.status_label.setText(
-                "● All settings saved"
+                "â— All settings saved"
             )
 
             current_theme = get_theme_data(self.theme_combo.currentText())
@@ -1475,7 +1480,7 @@ class SettingsWindow(QWidget):
             )
 
             self.status_label.setText(
-                "● Database backup created"
+                "â— Database backup created"
             )
 
         except Exception as error:
@@ -1682,3 +1687,4 @@ def run_settings_window():
 if __name__ == "__main__":
 
     run_settings_window()
+

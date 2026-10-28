@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QFileDialog
+﻿from PySide6.QtWidgets import QFileDialog
 from utils.employee_export import export_employee_rows
 import csv
 
@@ -176,7 +176,7 @@ class EmployeeManagementWindow(QWidget):
 
         filter_layout.addWidget(self.status_filter)
 
-        self.refresh_button = QPushButton("↻  Refresh")
+        self.refresh_button = QPushButton("Refresh")
         self.refresh_button.setObjectName("secondaryButton")
         self.refresh_button.setMinimumSize(105, 42)
         self.refresh_button.clicked.connect(self.refresh_employees)
@@ -509,7 +509,7 @@ class EmployeeManagementWindow(QWidget):
         """
 
         if not photo_path:
-            label.setText("👤")
+            label.setText("ðŸ‘¤")
             label.setStyleSheet(fallback_style)
             return label
 
@@ -517,14 +517,14 @@ class EmployeeManagementWindow(QWidget):
             photo_file = Path(str(photo_path)).expanduser()
 
             if not photo_file.is_file():
-                label.setText("👤")
+                label.setText("ðŸ‘¤")
                 label.setStyleSheet(fallback_style)
                 return label
 
             source_pixmap = QPixmap(str(photo_file))
 
             if source_pixmap.isNull():
-                label.setText("👤")
+                label.setText("ðŸ‘¤")
                 label.setStyleSheet(fallback_style)
                 return label
 
@@ -574,7 +574,7 @@ class EmployeeManagementWindow(QWidget):
 
         except Exception:
             logger.exception("Unable to display employee photo")
-            label.setText("👤")
+            label.setText("ðŸ‘¤")
             label.setStyleSheet(fallback_style)
             return label
 
@@ -671,7 +671,7 @@ class EmployeeManagementWindow(QWidget):
 
                 try:
                     salary_text = (
-                        f"₹ {float(salary):,.2f}"
+                        f"\u20b9 {float(salary):,.2f}"
                         if salary is not None
                         else "-"
                     )
@@ -688,7 +688,7 @@ class EmployeeManagementWindow(QWidget):
                 )
 
                 status_item = self.make_item(
-                    f"●  {employee_status}",
+                    f"\u25CF{employee_status}",
                     center=True,
                 )
 
@@ -706,6 +706,7 @@ class EmployeeManagementWindow(QWidget):
                 # Edit button
                 edit_button = QPushButton("Edit")
                 edit_button.setObjectName("editButton")
+                edit_button.setMinimumWidth(64)
                 edit_button.setToolTip(
                     f"Edit {getattr(employee, 'full_name', 'employee')}"
                 )
@@ -721,6 +722,7 @@ class EmployeeManagementWindow(QWidget):
                 # Delete button
                 delete_button = QPushButton("Delete")
                 delete_button.setObjectName("deleteButton")
+                delete_button.setMinimumWidth(64)
                 delete_button.setToolTip(
                     f"Delete {getattr(employee, 'full_name', 'employee')}"
                 )
@@ -793,6 +795,18 @@ class EmployeeManagementWindow(QWidget):
         try:
             self.employee_form = EmployeeFormWindow(employee)
 
+            # HR-only phone validation. Admin behavior stays unchanged.
+            from PySide6.QtCore import QRegularExpression
+            from PySide6.QtGui import QRegularExpressionValidator
+
+            self.employee_form.hr_validation_mode = True
+            self.employee_form.phone_input.setMaxLength(10)
+            self.employee_form.phone_input.setValidator(
+                QRegularExpressionValidator(
+                    QRegularExpression(r"[0-9]{0,10}"),
+                    self.employee_form.phone_input,
+                )
+            )
             self.employee_form.setAttribute(
                 Qt.WidgetAttribute.WA_DeleteOnClose,
                 True,

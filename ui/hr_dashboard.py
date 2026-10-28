@@ -3067,35 +3067,55 @@ class EmployeeDialog(QDialog):
         self.status_input.setCurrentText(employee["status"] or "Active")
 
     def save(self):
+        import re
 
         name = self.name_input.text().strip()
-
         email = self.email_input.text().strip()
+        phone = self.phone_input.text().strip()
 
         if not name:
-
-            QMessageBox.warning(self, "Missing", "Name is required.")
-
+            QMessageBox.warning(
+                self, "Missing", "Name is required."
+            )
+            self.name_input.setFocus()
             return
 
-        if "@" not in email or "." not in email:
+        import re
 
+        # Email: valid format, no extra characters after the domain suffix.
+        email_pattern = (
+            r"[A-Za-z0-9]+"
+            r"(?:[._%+-][A-Za-z0-9]+)*"
+            r"@"
+            r"(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?[.])+"
+            r"(?:com|in|org|net|edu|gov|info|biz|io|ai|uk|us|ca|au|de|fr|me|app|dev|tech|online|store|site|xyz|co)"
+        )
+
+        if not re.fullmatch(email_pattern, email, re.IGNORECASE):
             QMessageBox.warning(
                 self,
-                "Invalid",
-                "Please enter a valid email address.",
+                "Invalid Email",
+                "Enter a valid email, e.g. name@gmail.com."
             )
+            self.email_input.setFocus()
+            return
 
+        # Mobile: exactly 10 ASCII digits, starting from 6, 7, 8, or 9.
+        if phone and not re.fullmatch(r"[6-9][0-9]{9}", phone):
+            QMessageBox.warning(
+                self, "Invalid Mobile Number",
+                "Mobile number must be exactly 10 digits and start with 6, 7, 8, or 9."
+            )
+            self.phone_input.setFocus()
             return
 
         department = self.department_input.currentText().strip()
-
         designation = self.designation_input.text().strip()
 
         values = {
             "name": name,
             "email": email,
-            "phone": self.phone_input.text().strip(),
+            "phone": phone,
             "department": department,
             "designation": designation,
             "salary": self.salary_input.value(),
@@ -3104,17 +3124,11 @@ class EmployeeDialog(QDialog):
         }
 
         try:
-
             if self.employee:
-
                 self.db.save_employee(values, self.employee["id"])
-
                 self.db.log("Employee updated", name, "employee")
-
             else:
-
                 self.db.save_employee(values)
-
                 self.db.log(
                     "New employee registered",
                     f"{name} - {designation or department or 'Employee'}",
@@ -3122,25 +3136,16 @@ class EmployeeDialog(QDialog):
                 )
 
         except IntegrityError:
-
             QMessageBox.warning(
-                self,
-                "Duplicate",
-                "An employee with this email or code already exists.",
+                self, "Duplicate",
+                "An employee with this email or code already exists."
             )
-
             return
-
         except LookupError as exc:
-
             QMessageBox.warning(self, "Not found", str(exc))
-
             return
-
         except SQLAlchemyError as exc:
-
             show_db_error(self, exc)
-
             return
 
         self.accept()
